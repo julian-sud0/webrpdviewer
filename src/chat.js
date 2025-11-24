@@ -1,7 +1,7 @@
 // 引入加密解密函数
 import { lol } from './crypt.js';
 
-// 获取 DOM 元素
+/* // 获取 DOM 元素
 const chatBox = document.getElementById('chat-box');
 const textInput = document.getElementById('textInput');
 const sendBtn = document.getElementById('sendBtn');
@@ -9,9 +9,12 @@ const uploadBtn = document.getElementById('uploadBtn');
 const imageInput = document.getElementById('imageInput');
 
 let messages = [];
+let pendingImageBase64 = null; */
+let chatBox, textInput, sendBtn, uploadBtn, imageInput;
+let messages = [];
 let pendingImageBase64 = null;
 
-// 解密 caseId
+/* // 解密 caseId
 const encryptedCaseId = new URLSearchParams(window.location.search).get('id');
 if (!encryptedCaseId) {
     alert('Missing case ID');
@@ -22,7 +25,83 @@ const caseId = lol(encryptedCaseId);
 if (!caseId) {
     alert('Invalid case ID');
     throw new Error('Invalid case ID');
+} */
+
+let caseId = null;
+
+export function initChat() {
+  // DOM lookups happen on demand
+  chatBox    = document.getElementById('chat-box');
+  textInput  = document.getElementById('textInput');
+  sendBtn    = document.getElementById('sendBtn');
+  uploadBtn  = document.getElementById('uploadBtn');
+  imageInput = document.getElementById('imageInput');
+
+  const imageModal = document.getElementById('imageModal');
+  const modalImage = document.getElementById('modalImage');
+
+  // If chat DOM isn’t present, don’t crash—just skip init
+  if (!chatBox || !textInput || !sendBtn || !uploadBtn || !imageInput) {
+    console.warn('Chat DOM not found; skipping init.');
+    return;
+  }
+
+  // Decrypt case id lazily (avoid blocking early)
+  const encryptedCaseId = new URLSearchParams(window.location.search).get('id');
+  if (!encryptedCaseId) {
+    console.warn('Missing case ID for chat');
+    return;
+  }
+  caseId = lol(encryptedCaseId);
+  if (!caseId) {
+    console.warn('Invalid case ID for chat');
+    return;
+  }
+
+  // Button/file handlers
+  sendBtn.addEventListener('click', handleSendMessage);
+  uploadBtn.addEventListener('click', () => imageInput.click());
+  imageInput.addEventListener('change', handleImageUpload);
+
+  // Paste-to-upload (was top-level before)
+  textInput.addEventListener('paste', function (e) {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          const base64 = event.target.result.split(',')[1];
+          previewImage(base64, file.type || 'image/jpeg');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  });
+
+  // Click-to-zoom on images (was top-level before)
+  if (imageModal && modalImage) {
+    chatBox.addEventListener('click', function (e) {
+      if (e.target.tagName === 'IMG') {
+        modalImage.src = e.target.src;
+        imageModal.style.display = 'flex';
+      }
+    });
+    imageModal.addEventListener('click', function () {
+      imageModal.style.display = 'none';
+    });
+  }
+
+  // Defer the initial notes fetch until idle/next tick (no type error)
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(() => fetchNotes(), { timeout: 200 });
+  } else {
+    setTimeout(fetchNotes, 0);
+  }
+
 }
+
 
 // 推测 MIME 类型
 function detectImageMime(base64) {
@@ -190,7 +269,7 @@ function handleImageUpload(event) {
     }
 }
 
-// Ctrl+V 粘贴图片
+/* // Ctrl+V 粘贴图片
 textInput.addEventListener('paste', function (e) {
     const items = e.clipboardData && e.clipboardData.items;
     if (!items) return;
@@ -206,7 +285,7 @@ textInput.addEventListener('paste', function (e) {
             reader.readAsDataURL(file);
         }
     }
-});
+}); */
 
 // 取消图片预览（不清除文本）
 window.clearImage = function () {
@@ -216,7 +295,7 @@ window.clearImage = function () {
     imageInput.value = '';
 };
 
-// 放大图片
+/* // 放大图片
 const imageModal = document.getElementById('imageModal');
 const modalImage = document.getElementById('modalImage');
 chatBox.addEventListener('click', function (e) {
@@ -227,10 +306,11 @@ chatBox.addEventListener('click', function (e) {
 });
 imageModal.addEventListener('click', function () {
     imageModal.style.display = 'none';
-});
+}); */
 
-// 初始化
+/* // 初始化
 sendBtn.addEventListener('click', handleSendMessage);
 uploadBtn.addEventListener('click', () => imageInput.click());
 imageInput.addEventListener('change', handleImageUpload);
-fetchNotes();
+fetchNotes(); */
+// remove the eager auto-run at module load
