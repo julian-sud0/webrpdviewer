@@ -6,6 +6,8 @@
     "serve": "http-server -p 8080 -c-1 .",
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch",
+    "fixtures": "node mock/generate-fixtures.mjs",
+    "dev:mock": "node mock/generate-fixtures.mjs && http-server -p 8080 -c-1 -o /index.dev.html .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

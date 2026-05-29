@@ -32,6 +32,18 @@ Good enough to iterate on the chat widget, mobile UX, and styling immediately.
 To load a real case you need `?id=<token>` and a reachable backend, e.g.
 `http://localhost:8080/?id=...`.
 
+## Running fully offline (no backend, no credentials)
+
+```bash
+npm run dev:mock   # builds fixtures, serves, opens index.dev.html
+```
+
+`index.dev.html` runs the whole viewer against a synthetic case served by a
+`window.fetch` shim — see [`mock/README.md`](./mock/README.md) and the
+reverse-engineered [`CONTRACT.md`](./CONTRACT.md). Production `index.html` is
+untouched. This unblocks UI / perf / de-minification work without the live
+backend.
+
 ## Building (currently blocked)
 
 ```bash
@@ -58,6 +70,7 @@ npm run dev        # webpack --watch (development)
    `src/` from the author, or de-minify `bundle.js`.
 2. **Backend unreachable from sandbox.** `live.api.smartrpdai.com` returns 403
    and `smartrpdai.com` is unreachable from this environment's network policy,
-   so real-case data won't load here even with credentials. Use mocked API
-   responses + a local sample mesh for offline UI/perf work, or run from an
+   so real-case data won't load here even with credentials. ✅ **Resolved for
+   offline work** by the mock backend (`npm run dev:mock`, see
+   [`mock/README.md`](./mock/README.md)); for real cases, run from an
    environment with both credentials and a permissive network policy.
