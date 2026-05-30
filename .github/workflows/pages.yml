@@ -1,0 +1,89 @@
+name: Deploy offline mock to GitHub Pages
+
+# Publishes the SmartRPD viewer running against the offline mock backend, so it
+# can be opened from a URL without credentials or a reachable backend.
+#
+# The site's root page is the OFFLINE mock (index.dev.html copied to index.html
+# in the build artifact only) — the repo's production index.html is left as-is.
+
+on:
+  push:
+    branches:
+      - claude/stoic-sagan-u2vUx
+      - main
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate fixtures
+        run: npm run fixtures
+
+      - name: Verify fixtures
+        run: node mock/verify.mjs
+
+      - name: Assemble site (root = offline mock)
+        run: |
+          mkdir -p _site
+          rsync -a \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '_site' \
+            ./ _site/
+          # Make the offline mock the landing page; keep production index.html too.
+          cp index.dev.html _site/index.html
+          # Disable Jekyll processing of the static files.
+          touch _site/.nojekyll
+
+      - name: Scrub hardcoded credentials from the published bundle
+        run: |
+          # The mock fakes login, so the deployed viewer needs no real creds.
+          node mock/scrub-bundle.mjs _site/bundle.js
+          node mock/scrub-bundle.mjs _site/index.html 2>/dev/null || true
+
+      - name: Guard — fail if any credential literal reached the artifact
+        run: |
+          if grep -rIlE 'machine_id:"[0-9a-f]{40}"|password:"faid|AC4gRQXZJoNz9EhhW36Q8jMJXBsf|3a0df9c37b50873c63cebecd7bed73152a5ef616' _site; then
+            echo "::error::Credential literal found in build artifact — aborting deploy."
+            exit 1
+          fi
+          echo "No credential literals in artifact."
+
+      - uses: actions/configure-pages@v5
+        with:
+          # Auto-enable Pages (source = GitHub Actions) on first run if possible.
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
