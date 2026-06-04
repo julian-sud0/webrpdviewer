@@ -171,13 +171,32 @@ const occlusionColor = (R) => (idx, x, y, z) => {
 const undercutColor = (r) => (idx, x, y, z) => ramp(UNDERCUT_RAMP, (y / r + 1) / 2);
 
 // ---------------------------------------------------------------------------
-// Build the meshes
+// Real jaw geometry. mock/assets/mandible.json is a decimated + normalized
+// human mandible bone (Open-Full-Jaw dataset, Patient_1, teeth removed),
+// centered at the origin and scaled to ~24 units. Native axes are
+// X=left-right, Y=anterior-posterior, Z=superior-inferior(height); the viewer
+// frame is X=left-right, Y=up, Z=depth, so we remap (x, y, z) -> (x, z, y).
 // ---------------------------------------------------------------------------
+const JAW = JSON.parse(readFileSync(join(__dirname, "assets", "mandible.json"), "utf8"));
+function loadJawMesh({ yOffset = 0, mirror = false }) {
+  const s = JAW.positions;
+  const positions = new Array(s.length);
+  for (let i = 0; i < s.length; i += 3) {
+    const x = s[i], depth = s[i + 1], height = s[i + 2];
+    positions[i] = x;
+    positions[i + 1] = (mirror ? -height : height) + yOffset; // up (mirror => opposing arch)
+    positions[i + 2] = depth;                                  // front-back
+  }
+  return { positions, indices: JAW.indices.slice(), count: positions.length / 3 };
+}
+
 const R = 10, rJaw = 2.6, rDent = 1.7;
 
-// OFF (indexed) — jaw (parameterisation) + denture (surface), upper & lower.
-const offUpperJaw = buildIndexedArch({ U: 48, V: 12, R, r: rJaw });
-const offLowerJaw = buildIndexedArch({ U: 48, V: 12, R, r: rJaw, yOffset: -7 });
+// OFF (indexed) — parameterisation jaws are the REAL mandible (lower) and a
+// mirrored copy standing in for the opposing arch (upper). Surfaces (dentures)
+// stay synthetic and sit in the same frame.
+const offUpperJaw = loadJawMesh({ yOffset: 6, mirror: true });
+const offLowerJaw = loadJawMesh({ yOffset: -6, mirror: false });
 const offUpperDent = buildIndexedArch({ U: 48, V: 12, R, r: rDent, yOffset: 0.6 });
 const offLowerDent = buildIndexedArch({ U: 48, V: 12, R, r: rDent, yOffset: -6.4 });
 
@@ -204,16 +223,25 @@ write("case.json", {
   username: "demo_designer",
 });
 
-// /undercutheatmap/get  -> sized to the INDEXED OFF meshes.
-function offHeatmap(jawTypeStr, mesh, r) {
+// /undercutheatmap/get  -> sized to the INDEXED OFF meshes. Undercut is ramped
+// over each mesh's own local height range so it renders on any geometry.
+function offHeatmap(jawTypeStr, mesh) {
+  let minY = Infinity, maxY = -Infinity;
+  for (let i = 1; i < mesh.positions.length; i += 3) {
+    const y = mesh.positions[i];
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  const span = (maxY - minY) || 1;
+  const undercutLocal = (idx, x, y, z) => ramp(UNDERCUT_RAMP, (y - minY) / span);
   return {
     jaw_type: jawTypeStr,
-    surveying_values: { data: packHeatmap(mesh.count, mesh.positions, undercutColor(r)) },
+    surveying_values: { data: packHeatmap(mesh.count, mesh.positions, undercutLocal) },
     occlusion_values: { data: packHeatmap(mesh.count, mesh.positions, occlusionColor(R)) },
   };
 }
-write("heatmap_upper.json", offHeatmap("upper_jaw", offUpperJaw, rJaw));
-write("heatmap_lower.json", offHeatmap("lower_jaw", offLowerJaw, rJaw));
+write("heatmap_upper.json", offHeatmap("upper_jaw", offUpperJaw));
+write("heatmap_lower.json", offHeatmap("lower_jaw", offLowerJaw));
 
 // /additionalundercutheatmap/get -> sized to the STL SOUP slot meshes.
 function soupHeatmap(jawTypeStr, soup, r) {
@@ -235,11 +263,9 @@ write("parameterisation.json", [
   { filename: "ParameterisationMesh_lower.off", data: b64(toOFF(offLowerJaw)), type: "lower" },
 ]);
 
-// /surface/getall  (the dentures)
-write("surface.json", [
-  { filename: "surface_upper.off", data: b64(toOFF(offUpperDent)), type: "upper" },
-  { filename: "surface_lower.off", data: b64(toOFF(offLowerDent)), type: "lower" },
-]);
+// /surface/getall  — left empty so the real mandible (parameterisation) is the
+// sole rendered scan; the synthetic denture shells would otherwise clutter it.
+write("surface.json", []);
 
 // /stl/raw/get — raw jaw occlusal view. Stubbed empty for the foundation.
 write("raw.json", []);
