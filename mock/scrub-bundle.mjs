@@ -39,6 +39,13 @@ let total = 0;
 for (const r of rules) {
   const n = (src.match(r.re) || []).length;
   if (r.required && n === 0) {
+    // Idempotent: a bundle already carrying the scrubbed placeholder is fine —
+    // only refuse when neither the secret pattern nor its replacement is present
+    // (which would mean an unrecognised bundle that could still hold secrets).
+    if (src.includes(r.to)) {
+      console.log(`  already scrubbed: ${r.name}`);
+      continue;
+    }
     console.error(`✗ expected credential pattern not found: ${r.name} — refusing to ship a possibly-unscrubbed bundle`);
     process.exit(1);
   }

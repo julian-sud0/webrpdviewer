@@ -3,7 +3,7 @@
   <head>
 
     <meta charset="utf-8" />
-    <title>SmartRPD Lite Web — OFFLINE MOCK</title>
+    <title>SmartRPD Lite Web</title>
     <link rel="stylesheet" href="css/style.css" />
     <style>
       /* Default styles for the loading bar */
@@ -72,40 +72,9 @@
         height: 100%;
         margin: 0; /* Ensure no default margin */
       }
-      /* Dev-only badge so it's obvious this is the offline mock */
-      #mock-badge {
-        position: fixed; top: 6px; right: 8px; z-index: 10000;
-        font: 11px/1.4 monospace; color: #fff; background: #b00020;
-        padding: 3px 8px; border-radius: 4px; opacity: .85;
-        pointer-events: none;
-      }
     </style>
-
-    <!--
-      OFFLINE MOCK ENTRY POINT.
-      This file is identical to index.html except it loads the mock backend
-      shim BELOW *before* the viewer module scripts. The shim patches
-      window.fetch to serve synthetic fixtures from ./mock/fixtures, so the
-      whole viewer runs with zero real network access. index.html stays
-      untouched for production. Open via:  npm run dev:mock
-    -->
-    <script>
-      // Bake a synthetic case id so the viewer auto-loads without a real link.
-      // token below decodes (src/crypt.js) to case_int_id 12345.
-      (function () {
-        var p = new URLSearchParams(location.search);
-        if (!p.get("id")) {
-          p.set("id", "OAJBLhkNOiQsPXc0MW0OASBBDRw");
-          location.replace(location.pathname + "?" + p.toString());
-        }
-      })();
-    </script>
-    <!-- Classic (non-module) script => runs synchronously before the deferred
-         module scripts, guaranteeing fetch is patched before the viewer calls it. -->
-    <script src="./mock/fetch-mock.js"></script>
   </head>
   <body>
-    <div id="mock-badge">OFFLINE MOCK</div>
     <header>
       <h1>SmartRPD Lite Web</h1>
     </header>
@@ -114,6 +83,22 @@
     </main>
     <div id="loading-container"></div>
 
+   <!--<div id="rotateNotice"><h1>Please rotate your device to landscape mode and refresh the page.</h1></div>'occlusion_values' in surface
+    <script>
+      function checkOrientation() {
+        if (window.innerHeight > window.innerWidth) {
+          document.getElementById('rotateNotice').style.display = 'block';
+        } else {
+          document.getElementById('rotateNotice').style.display = 'none';
+        }
+      }
+
+      window.addEventListener('load', checkOrientation);
+      window.addEventListener('resize', checkOrientationdist);
+      window.addEventListener('orientationchange', checkOrientation);
+    </script>-->
+    <!--<script src="./script.js"></script>-->
+    <!-- Chat Widget -->
     <!-- Chat Widget -->
     <div id="chat-widget">
       <div id="chat-box">
@@ -131,6 +116,7 @@
     </div>
     <img id="chat-icon" src="./chat-icon.png" alt="chat" />
 
+    <!-- <script type="module" src="./src/index.js"></script> -->
     <script type="module" src="./src/chat.js"></script>
     <script type="module" src="./src/mobile.js"></script>
     <script type="module" src="./bundle.js"></script>

@@ -47,10 +47,13 @@ jobs:
           mkdir -p _site
           rsync -a \
             --exclude '.git' \
+            --exclude '.github' \
             --exclude 'node_modules' \
             --exclude '_site' \
             ./ _site/
-          # Make the offline mock the landing page; keep production index.html too.
+          # The repo root index.html is already the offline mock (production page
+          # preserved as index.prod.html); re-assert it so the artifact stays
+          # correct even if the root copy ever drifts.
           cp index.dev.html _site/index.html
           # Disable Jekyll processing of the static files.
           touch _site/.nojekyll
@@ -63,7 +66,9 @@ jobs:
 
       - name: Guard — fail if any credential literal reached the artifact
         run: |
-          if grep -rIlE 'machine_id:"[0-9a-f]{40}"|password:"faid|AC4gRQXZJoNz9EhhW36Q8jMJXBsf|3a0df9c37b50873c63cebecd7bed73152a5ef616' _site; then
+          # Structural patterns only — never embed the actual secret values here
+          # (this file is committed). Real creds match; MOCK_* placeholders do not.
+          if grep -rIlE 'machine_id:"[0-9a-f]{40}"|uuid:"[A-Za-z0-9_-]{16,}"|password:"[^"]{3,}"' _site; then
             echo "::error::Credential literal found in build artifact — aborting deploy."
             exit 1
           fi
